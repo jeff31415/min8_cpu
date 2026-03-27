@@ -20,6 +20,18 @@ ALU_MNEMONICS = {
     0x07: "SHR",
     0x08: "INC",
     0x09: "DEC",
+    0x0A: "SHR2",
+    0x0B: "SHR3",
+    0x0C: "SHL2",
+    0x0D: "SHL3",
+    0x0E: "BSET",
+    0x0F: "BCLR",
+    0x10: "BTGL",
+    0x11: "BTST",
+    0x12: "MASK3",
+    0x13: "MASK4",
+    0x14: "ADC",
+    0x15: "SBB",
 }
 
 MEM_CTRL_MNEMONICS = {

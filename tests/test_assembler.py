@@ -151,6 +151,19 @@ NOP
 
         self.assertEqual(result.image[:5], bytes([0x8F, 0x8E, 0x18, 0x83, 0xE0]))
 
+    def test_graphics_extension_mnemonics_encode(self) -> None:
+        result = assemble_source(
+            """
+    SHR2
+    BTST
+    MASK4
+    ADC
+    SBB
+"""
+        )
+
+        self.assertEqual(result.image[:5], bytes([0xCA, 0xD1, 0xD3, 0xD4, 0xD5]))
+
 
 if __name__ == "__main__":
     unittest.main()

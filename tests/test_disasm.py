@@ -15,11 +15,23 @@ class DisassemblyTests(unittest.TestCase):
         self.assertEqual(lines[0].symbol, "start")
         self.assertEqual(lines[1].text, "HALT")
 
+    def test_disassembles_graphics_extension_opcode(self) -> None:
+        lines = disassemble_image(bytes([0xD1]), addresses=[0])
+
+        self.assertFalse(lines[0].illegal)
+        self.assertEqual(lines[0].text, "BTST")
+
+    def test_disassembles_extended_precision_opcode(self) -> None:
+        lines = disassemble_image(bytes([0xD4]), addresses=[0])
+
+        self.assertFalse(lines[0].illegal)
+        self.assertEqual(lines[0].text, "ADC")
+
     def test_reserved_alu_disassembles_as_illegal_byte(self) -> None:
-        lines = disassemble_image(bytes([0xCA]), addresses=[0])
+        lines = disassemble_image(bytes([0xD6]), addresses=[0])
 
         self.assertTrue(lines[0].illegal)
-        self.assertEqual(lines[0].text, ".byte 0xCA ; illegal")
+        self.assertEqual(lines[0].text, ".byte 0xD6 ; illegal")
 
     def test_format_disassembly(self) -> None:
         text = format_disassembly(disassemble_image(bytes([0x7F]), addresses=[0]))

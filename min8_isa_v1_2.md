@@ -293,13 +293,57 @@ The ALU uses:
 | `01000` | `0xC8` | `INC` | `R0 <- R1 + 1` | result == 0 | carry-out |
 | `01001` | `0xC9` | `DEC` | `R0 <- R1 - 1` | result == 0 | borrow-out |
 
+## 5.4.1 Graphics and Bit Manipulation Extensions
+
+These ALU extensions accelerate VRAM access, pixel positioning, masking, and single-bit updates.
+
+| `xxxxx` | Hex | Mnemonic | Semantics | `Z` | `C` |
+|---|---:|---|---|---|---|
+| `01010` | `0xCA` | `SHR2` | `R0 <- R1 >> 2` | result == 0 | old `R1[1]` |
+| `01011` | `0xCB` | `SHR3` | `R0 <- R1 >> 3` | result == 0 | old `R1[2]` |
+| `01100` | `0xCC` | `SHL2` | `R0 <- R1 << 2` | result == 0 | old `R1[6]` |
+| `01101` | `0xCD` | `SHL3` | `R0 <- R1 << 3` | result == 0 | old `R1[5]` |
+| `01110` | `0xCE` | `BSET` | `R0 <- R1 \| (1 << R2[2:0])` | result == 0 | `0` |
+| `01111` | `0xCF` | `BCLR` | `R0 <- R1 & ~(1 << R2[2:0])` | result == 0 | `0` |
+| `10000` | `0xD0` | `BTGL` | `R0 <- R1 ^ (1 << R2[2:0])` | result == 0 | `0` |
+| `10001` | `0xD1` | `BTST` | `R0 <- R1 & (1 << R2[2:0])` | result == 0 | `0` |
+| `10010` | `0xD2` | `MASK3` | `R0 <- R1 & 0x07` | result == 0 | `0` |
+| `10011` | `0xD3` | `MASK4` | `R0 <- R1 & 0x0F` | result == 0 | `0` |
+
+### Extension usage notes
+
+- `SHR2`, `SHR3`, `SHL2`, and `SHL3` are intended as fast address-scaling helpers.
+  - `SHR3` is equivalent to divide-by-8.
+  - `SHL3` is equivalent to multiply-by-8.
+- `BSET`, `BCLR`, `BTGL`, and `BTST` use the low 3 bits of `R2` as an implicit bit index.
+- `MASK3` and `MASK4` are fast modulo helpers for powers of two.
+  - `MASK3` is equivalent to `R1 % 8`.
+  - `MASK4` is equivalent to `R1 % 16`.
+
+## 5.4.2 Extended Precision Arithmetic
+
+These ALU extensions make multi-byte integer arithmetic practical without software-emulated carry propagation.
+
+| `xxxxx` | Hex | Mnemonic | Semantics | `Z` | `C` |
+|---|---:|---|---|---|---|
+| `10100` | `0xD4` | `ADC` | `R0 <- R1 + R2 + C` | result == 0 | carry-out |
+| `10101` | `0xD5` | `SBB` | `R0 <- R1 - R2 - C` | result == 0 | borrow-out |
+
+### Usage notes
+
+- `ADC` consumes the incoming carry bit and writes a new carry-out.
+- `SBB` consumes the incoming borrow bit from `C`.
+- `SBB` follows the same subtraction convention as `SUB` and `DEC`.
+  - `C = 1` means a borrow occurred.
+  - `C = 0` means no borrow occurred.
+
 ### Carry / borrow convention
-For subtraction-class instructions (`SUB`, `DEC`):
+For subtraction-class instructions (`SUB`, `DEC`, `SBB`):
 - `C = 1` means a **borrow occurred**
 - `C = 0` means **no borrow**
 
 ### Reserved ALU space
-Encodings `0xCA..0xDF` are currently **reserved**.
+Encodings `0xD6..0xDF` are currently **reserved**.
 
 ### Reserved opcode behavior
 For simulator and RTL consistency, the following behavior is defined:

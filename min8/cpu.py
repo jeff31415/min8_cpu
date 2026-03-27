@@ -272,7 +272,9 @@ class Min8CPU:
     def _execute_alu(self, instruction: DecodedInstruction) -> tuple[int, int]:
         r1 = self.state.registers[1]
         r2 = self.state.registers[2]
+        carry_in = self.state.c & 0x01
         mnemonic = instruction.mnemonic
+        bit_mask = 1 << (r2 & 0x07)
 
         if mnemonic == "ADD":
             total = r1 + r2
@@ -295,6 +297,32 @@ class Min8CPU:
             return (r1 + 1) & 0xFF, int(r1 == 0xFF)
         if mnemonic == "DEC":
             return (r1 - 1) & 0xFF, int(r1 == 0x00)
+        if mnemonic == "SHR2":
+            return (r1 >> 2) & 0xFF, (r1 >> 1) & 0x01
+        if mnemonic == "SHR3":
+            return (r1 >> 3) & 0xFF, (r1 >> 2) & 0x01
+        if mnemonic == "SHL2":
+            return (r1 << 2) & 0xFF, (r1 >> 6) & 0x01
+        if mnemonic == "SHL3":
+            return (r1 << 3) & 0xFF, (r1 >> 5) & 0x01
+        if mnemonic == "BSET":
+            return r1 | bit_mask, 0
+        if mnemonic == "BCLR":
+            return r1 & (~bit_mask & 0xFF), 0
+        if mnemonic == "BTGL":
+            return r1 ^ bit_mask, 0
+        if mnemonic == "BTST":
+            return r1 & bit_mask, 0
+        if mnemonic == "MASK3":
+            return r1 & 0x07, 0
+        if mnemonic == "MASK4":
+            return r1 & 0x0F, 0
+        if mnemonic == "ADC":
+            total = r1 + r2 + carry_in
+            return total & 0xFF, int(total > 0xFF)
+        if mnemonic == "SBB":
+            subtrahend = r2 + carry_in
+            return (r1 - subtrahend) & 0xFF, int(r1 < subtrahend)
         raise AssertionError(f"Unhandled ALU mnemonic {mnemonic}")
 
     def _write_register(self, index: int, value: int, writes: list[RegisterWrite]) -> None:

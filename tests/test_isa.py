@@ -27,9 +27,19 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(instruction.imm4, 0x5)
         self.assertEqual(instruction.instruction_text, "LDI_H_R7 0x5")
 
+    def test_graphics_extension_decode(self) -> None:
+        instruction = decode_opcode(0xD1)
+        self.assertEqual(instruction.mnemonic, "BTST")
+        self.assertEqual(instruction.instruction_text, "BTST")
+
+    def test_extended_precision_decode(self) -> None:
+        instruction = decode_opcode(0xD4)
+        self.assertEqual(instruction.mnemonic, "ADC")
+        self.assertEqual(instruction.instruction_text, "ADC")
+
     def test_reserved_alu_decode_raises(self) -> None:
         with self.assertRaises(IllegalInstruction):
-            decode_opcode(0xCA, pc=0x44)
+            decode_opcode(0xD6, pc=0x44)
 
 
 if __name__ == "__main__":

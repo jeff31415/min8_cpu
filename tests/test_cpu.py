@@ -72,6 +72,91 @@ class Min8CPUTests(unittest.TestCase):
         self.assertEqual(cpu.state.registers[0], 0xFF)
         self.assertEqual((cpu.state.z, cpu.state.c), (0, 1))
 
+    def test_shift_extensions_update_result_and_carry(self) -> None:
+        cpu = self.make_cpu()
+        cpu.state.registers[1] = 0xB2
+        cpu.load_image([0xCA, 0xCD])  # SHR2; SHL3
+
+        first = cpu.step()
+        self.assertEqual(first.instruction_text, "SHR2")
+        self.assertEqual(cpu.state.registers[0], 0x2C)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 1))
+
+        cpu.state.registers[1] = 0x27
+        second = cpu.step()
+        self.assertEqual(second.instruction_text, "SHL3")
+        self.assertEqual(cpu.state.registers[0], 0x38)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 1))
+
+    def test_bit_extensions_use_r2_low_bits(self) -> None:
+        cpu = self.make_cpu()
+        cpu.state.registers[2] = 0x1C
+        cpu.load_image([0xCE, 0xCF, 0xD0, 0xD1])  # BSET; BCLR; BTGL; BTST
+
+        cpu.state.registers[1] = 0x00
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x10)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 0))
+
+        cpu.state.registers[1] = 0x1F
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x0F)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 0))
+
+        cpu.state.registers[1] = 0x10
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x00)
+        self.assertEqual((cpu.state.z, cpu.state.c), (1, 0))
+
+        cpu.state.registers[1] = 0x10
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x10)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 0))
+
+    def test_mask_extensions_limit_r1_and_clear_carry(self) -> None:
+        cpu = self.make_cpu()
+        cpu.load_image([0xD2, 0xD3])  # MASK3; MASK4
+
+        cpu.state.registers[1] = 0xAB
+        cpu.state.c = 1
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x03)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 0))
+
+        cpu.state.registers[1] = 0x10
+        cpu.state.c = 1
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0x00)
+        self.assertEqual((cpu.state.z, cpu.state.c), (1, 0))
+
+    def test_adc_and_sbb_chain_with_carry_flag(self) -> None:
+        cpu = self.make_cpu()
+        cpu.load_image([0xD4, 0xD5])  # ADC; SBB
+
+        cpu.state.registers[1] = 0xFF
+        cpu.state.registers[2] = 0x00
+        cpu.state.c = 1
+        first = cpu.step()
+        self.assertEqual(first.instruction_text, "ADC")
+        self.assertEqual(cpu.state.registers[0], 0x00)
+        self.assertEqual((cpu.state.z, cpu.state.c), (1, 1))
+
+        cpu.state.registers[1] = 0x10
+        cpu.state.registers[2] = 0x0F
+        cpu.state.c = 1
+        second = cpu.step()
+        self.assertEqual(second.instruction_text, "SBB")
+        self.assertEqual(cpu.state.registers[0], 0x00)
+        self.assertEqual((cpu.state.z, cpu.state.c), (1, 0))
+
+        cpu.state.pc = 0x01
+        cpu.state.registers[1] = 0x10
+        cpu.state.registers[2] = 0x10
+        cpu.state.c = 1
+        cpu.step()
+        self.assertEqual(cpu.state.registers[0], 0xFF)
+        self.assertEqual((cpu.state.z, cpu.state.c), (0, 1))
+
     def test_load_store_and_post_increment_wrap(self) -> None:
         cpu = self.make_cpu()
         cpu.state.registers[3] = 0x44
@@ -193,7 +278,7 @@ class Min8CPUTests(unittest.TestCase):
 
     def test_reserved_alu_opcode_raises_illegal_instruction(self) -> None:
         cpu = self.make_cpu()
-        cpu.load_image([0xCA])
+        cpu.load_image([0xD6])
 
         with self.assertRaises(IllegalInstruction):
             cpu.step()
