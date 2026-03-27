@@ -56,7 +56,7 @@ Assembler alias and pseudo-instruction reference:
 
 Current scope:
 
-- frozen ISA document in `min8_isa_v1_2.md`
+- frozen ISA document in `min8_isa_v1_3.md`
 - phase-0 simulator/tooling contracts
 - phase-1 reference simulator with tests
 - phase-2 assembler with labels, directives, and pseudo-ops

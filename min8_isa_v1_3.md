@@ -1,5 +1,5 @@
 # Minimalist 8-Bit CPU ISA (Min8) Reference Manual
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Frozen draft for simulator and RTL implementation
 
 ---
@@ -654,7 +654,19 @@ OUT R3
 11000111  SHR          (0xC7)
 11001000  INC          (0xC8)
 11001001  DEC          (0xC9)
-11001010..11011111     reserved / illegal
+11001010  SHR2         (0xCA)
+11001011  SHR3         (0xCB)
+11001100  SHL2         (0xCC)
+11001101  SHL3         (0xCD)
+11001110  BSET         (0xCE)
+11001111  BCLR         (0xCF)
+11010000  BTGL         (0xD0)
+11010001  BTST         (0xD1)
+11010010  MASK3        (0xD2)
+11010011  MASK4        (0xD3)
+11010100  ADC          (0xD4)
+11010101  SBB          (0xD5)
+11010110..11011111     reserved / illegal
 
 111xxxxx  IO           (0xE0..0xFF)
 11100sss  SETIO        (0xE0..0xE7)
@@ -678,6 +690,15 @@ A compliant Min8 implementation must:
 ---
 
 ## 13. Revision History
+
+### Version 1.3
+- added ALU graphics and bit-manipulation extensions:
+  - `SHR2`, `SHR3`, `SHL2`, `SHL3`
+  - `BSET`, `BCLR`, `BTGL`, `BTST`
+  - `MASK3`, `MASK4`
+- added extended-precision arithmetic opcodes:
+  - `ADC`, `SBB`
+- reduced remaining reserved ALU space to `0xD6..0xDF`
 
 ### Version 1.2
 - restored `R6` as GPR
