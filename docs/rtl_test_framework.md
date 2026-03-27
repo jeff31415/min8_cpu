@@ -129,14 +129,17 @@ lockstep tests.
 The first core should be wrapped in a simulation-only top module that provides:
 
 - clock and reset
-- internal 256-byte unified memory
+- an abstract instruction/data memory boundary
+- a simulation memory model that backs that boundary
 - simple FIFO-backed I/O model
 - architectural event outputs
 - optional debug visibility into state
 
 Recommended wrapper responsibilities:
 
+- instantiate a 256-byte unified simulation memory model
 - preload memory from a hex or binary-derived image
+- optionally expose a simple test-side memory write path for cocotb preload
 - expose a pulse when one instruction retires
 - expose a pulse when the core blocks on I/O
 - expose a pulse when the core halts
@@ -205,6 +208,7 @@ Suggested structure:
 
 - `rtl/`
   - `min8_core.v`
+  - `min8_mem_model.v`
   - `min8_core_tb.v`
 - `tests_rtl/`
   - `test_rtl_smoke.py`
@@ -223,6 +227,7 @@ Keep RTL tests separate from the current pure-Python unit tests.
 ### Phase A
 
 - write `rtl/min8_core.v`
+- write `rtl/min8_mem_model.v`
 - write `rtl/min8_core_tb.v`
 - add one cocotb smoke test for reset, one `ADD`, one `HALT`
 
@@ -241,7 +246,8 @@ Keep RTL tests separate from the current pure-Python unit tests.
 The right first milestone is:
 
 - `Verilator + cocotb`
-- simulation-only memory/I/O wrapper
+- abstract memory ports in `min8_core`
+- simulation-only memory/I/O wrapper around those ports
 - retirement-boundary lockstep against `Min8CPU`
 
 That gives the fastest path to high confidence without prematurely locking the

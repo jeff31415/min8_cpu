@@ -9,6 +9,9 @@ description = "Reference simulator and tooling for the Min8 ISA"
 readme = "README.md"
 requires-python = ">=3.12"
 
+[project.optional-dependencies]
+rtl = ["cocotb>=2,<3"]
+
 [project.scripts]
 min8-asm = "min8.asm:main"
 min8-gui = "min8.gui:main"

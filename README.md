@@ -13,6 +13,12 @@ python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
 
+For RTL verification, install the optional cocotb dependency:
+
+```bash
+python -m pip install -e ".[rtl]"
+```
+
 If `.venv` already exists but is missing `pip`, repair it with:
 
 ```bash
@@ -67,3 +73,24 @@ Current scope:
 Planned next:
 
 - Verilog RTL and hardware bring-up
+
+## RTL Tests
+
+If you installed OSS CAD Suite locally in the repository, the RTL smoke runner
+will auto-detect `oss-cad-suite/bin`. Otherwise export it yourself:
+
+```bash
+export PATH="/path/to/oss-cad-suite/bin:$PATH"
+```
+
+Run the current Verilator + cocotb RTL suite with:
+
+```bash
+source .venv/bin/activate
+python -m unittest tests_rtl.test_verilator_runner -v
+```
+
+That suite currently includes:
+
+- basic smoke tests for reset / HALT / simple execution
+- lockstep checks against the Python reference simulator for arithmetic, memory, branching, and blocking I/O programs
