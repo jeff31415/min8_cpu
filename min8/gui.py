@@ -70,6 +70,7 @@ class Min8Gui(tk.Tk):
         self.field_base_colors: dict[str, str] = {}
         self.memory_cells: dict[int, tk.Label] = {}
         self.body_pane: ttk.PanedWindow | None = None
+        self.left_detail_pane: ttk.PanedWindow | None = None
         self.right_detail_pane: ttk.PanedWindow | None = None
 
         self._build_ui()
@@ -109,18 +110,31 @@ class Min8Gui(tk.Tk):
         body.add(left, weight=2)
         body.add(right, weight=3)
 
-        self._build_source_tabs(left)
+        self._build_left_panel(left)
         self._build_right_panel(right)
 
     def _set_initial_layout(self) -> None:
         if self.body_pane is not None:
             width = self.body_pane.winfo_width()
             if width > 0:
-                self.body_pane.sashpos(0, int(width * 0.38))
-        if self.right_detail_pane is not None:
-            height = self.right_detail_pane.winfo_height()
+                self.body_pane.sashpos(0, int(width * 0.42))
+        if self.left_detail_pane is not None:
+            height = self.left_detail_pane.winfo_height()
             if height > 0:
-                self.right_detail_pane.sashpos(0, int(height * 0.62))
+                self.left_detail_pane.sashpos(0, int(height * 0.74))
+
+    def _build_left_panel(self, parent: ttk.Frame) -> None:
+        detail_pane = ttk.PanedWindow(parent, orient=tk.VERTICAL)
+        detail_pane.pack(fill=tk.BOTH, expand=True)
+        self.left_detail_pane = detail_pane
+
+        source_host = ttk.Frame(detail_pane)
+        io_host = ttk.Frame(detail_pane)
+        detail_pane.add(source_host, weight=4)
+        detail_pane.add(io_host, weight=1)
+
+        self._build_source_tabs(source_host)
+        self._build_io_frame(io_host)
 
     def _build_source_tabs(self, parent: ttk.Frame) -> None:
         notebook = ttk.Notebook(parent)
@@ -179,18 +193,7 @@ class Min8Gui(tk.Tk):
         register_root.grid_columnconfigure(1, weight=1)
 
         self._build_edit_frame(top)
-
-        detail_pane = ttk.PanedWindow(parent, orient=tk.VERTICAL)
-        detail_pane.pack(fill=tk.BOTH, expand=True)
-        self.right_detail_pane = detail_pane
-
-        memory_host = ttk.Frame(detail_pane)
-        io_host = ttk.Frame(detail_pane)
-        detail_pane.add(memory_host, weight=3)
-        detail_pane.add(io_host, weight=2)
-
-        self._build_memory_frame(memory_host)
-        self._build_io_frame(io_host)
+        self._build_memory_frame(parent)
 
     def _build_field_group(
         self,
