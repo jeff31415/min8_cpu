@@ -19,10 +19,11 @@ else:
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_OSS_CAD_BIN = ROOT / "oss-cad-suite" / "bin"
-BUILD_DIR = ROOT / "build" / "rtl_smoke_verilator"
+BUILD_ROOT = ROOT / "build" / "rtl_smoke_verilator"
 RTL_SOURCES = [
     ROOT / "rtl/min8_alu.v",
     ROOT / "rtl/min8_regfile.v",
+    ROOT / "rtl/min8_bram_wrap.v",
     ROOT / "rtl/min8_mem_model.v",
     ROOT / "rtl/min8_core.v",
     ROOT / "rtl/min8_core_tb.v",
@@ -49,7 +50,7 @@ def _prepare_environment() -> None:
 
 
 class VerilatorSmokeRunner(unittest.TestCase):
-    def test_verilator_rtl_suite(self) -> None:
+    def _run_suite(self, *, latch_opcode: int, build_dir: Path) -> None:
         if IMPORT_ERROR is not None:
             self.skipTest(f"cocotb is not installed: {IMPORT_ERROR}")
         try:
@@ -61,19 +62,26 @@ class VerilatorSmokeRunner(unittest.TestCase):
             sources=RTL_SOURCES,
             hdl_toplevel="min8_core_tb",
             always=True,
-            build_dir=str(BUILD_DIR),
+            build_dir=str(build_dir),
+            build_args=[f"-GCORE_LATCH_OPCODE={latch_opcode}"],
             waves=False,
         )
         results_xml = runner.test(
             hdl_toplevel="min8_core_tb",
             test_module=["test_rtl_smoke", "test_rtl_lockstep"],
             waves=False,
-            build_dir=str(BUILD_DIR),
-            test_dir=str(BUILD_DIR),
+            build_dir=str(build_dir),
+            test_dir=str(build_dir),
         )
         num_tests, num_failed = get_results(results_xml)
         self.assertGreater(num_tests, 0)
         self.assertEqual(num_failed, 0, f"{num_failed} cocotb RTL tests failed")
+
+    def test_verilator_rtl_suite_with_opcode_latch(self) -> None:
+        self._run_suite(latch_opcode=1, build_dir=BUILD_ROOT / "with_latch")
+
+    def test_verilator_rtl_suite_without_opcode_latch(self) -> None:
+        self._run_suite(latch_opcode=0, build_dir=BUILD_ROOT / "without_latch")
 
 
 if __name__ == "__main__":

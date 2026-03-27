@@ -1,7 +1,9 @@
 `timescale 1ns/1ps
 
-module min8_core_tb;
-    parameter MEM_INIT_FILE = "";
+module min8_core_tb #(
+    parameter MEM_INIT_FILE = "",
+    parameter CORE_LATCH_OPCODE = 1
+);
 
     reg clk;
     reg rst;
@@ -101,7 +103,9 @@ module min8_core_tb;
     };
     /* verilator lint_on UNUSEDSIGNAL */
 
-    min8_core u_core (
+    min8_core #(
+        .LATCH_OPCODE(CORE_LATCH_OPCODE)
+    ) u_core (
         .clk(clk),
         .rst(rst),
         .imem_addr(imem_addr),
@@ -143,7 +147,7 @@ module min8_core_tb;
         .faulted(faulted)
     );
 
-    min8_mem_model #(
+    min8_bram_wrap #(
         .MEM_INIT_FILE(MEM_INIT_FILE)
     ) u_mem (
         .clk(clk),

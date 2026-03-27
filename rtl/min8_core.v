@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 
-module min8_core (
+module min8_core #(
+    parameter LATCH_OPCODE = 1'b1
+) (
     input        clk,
     input        rst,
     output [7:0] imem_addr,
@@ -50,7 +52,7 @@ module min8_core (
 
     reg [2:0] state;
     reg [7:0] pc;
-    reg [7:0] ir;
+    reg [7:0] opcode_q;
     reg [7:0] pc_before_q;
     reg       z;
     reg       c;
@@ -66,21 +68,23 @@ module min8_core (
     reg [2:0] io_dst_q;
     reg [7:0] io_tx_data_q;
 
-    wire [2:0] mov_dst = ir[5:3];
-    wire [2:0] reg_rrr = ir[2:0];
-    wire [4:0] alu_subop = ir[4:0];
-    wire       ldi_h = ir[5];
-    wire       ldi_t = ir[4];
-    wire [3:0] imm4 = ir[3:0];
-    wire [2:0] memctrl_op = ir[5:3];
-    wire [1:0] io_class = ir[4:3];
+    wire [7:0] opcode = imem_rdata;
 
-    wire is_halt = (ir == 8'h7F);
-    wire is_mov = (ir[7:6] == 2'b00);
-    wire is_memctrl = (ir[7:6] == 2'b01) && !is_halt;
-    wire is_ldi = (ir[7:6] == 2'b10);
-    wire is_alu = (ir[7:5] == 3'b110);
-    wire is_io = (ir[7:5] == 3'b111);
+    wire [2:0] mov_dst = opcode[5:3];
+    wire [2:0] reg_rrr = opcode[2:0];
+    wire [4:0] alu_subop = opcode[4:0];
+    wire       ldi_h = opcode[5];
+    wire       ldi_t = opcode[4];
+    wire [3:0] imm4 = opcode[3:0];
+    wire [2:0] memctrl_op = opcode[5:3];
+    wire [1:0] io_class = opcode[4:3];
+
+    wire is_halt = (opcode == 8'h7F);
+    wire is_mov = (opcode[7:6] == 2'b00);
+    wire is_memctrl = (opcode[7:6] == 2'b01) && !is_halt;
+    wire is_ldi = (opcode[7:6] == 2'b10);
+    wire is_alu = (opcode[7:5] == 3'b110);
+    wire is_io = (opcode[7:5] == 3'b111);
 
     wire is_st = is_memctrl && (memctrl_op == 3'b000);
     wire is_ld = is_memctrl && (memctrl_op == 3'b001);
@@ -151,9 +155,11 @@ module min8_core (
     assign imem_en = (state == S_FETCH);
     assign imem_addr = pc;
 
-    assign dmem_en = (state == S_MEM);
+    assign dmem_en =
+        ((state == S_EXEC) && (is_ld || is_ldp)) ||
+        ((state == S_MEM) && !mem_is_load_q);
     assign dmem_we = (state == S_MEM) && !mem_is_load_q;
-    assign dmem_addr = mem_addr_q;
+    assign dmem_addr = ((state == S_EXEC) && (is_ld || is_ldp)) ? rdata_r7 : mem_addr_q;
     assign dmem_wdata = mem_wdata_q;
 
     assign rx_pop = in_fire_exec || in_fire_wait;
@@ -163,7 +169,7 @@ module min8_core (
 
     assign dbg_state = state;
     assign dbg_pc_before = pc_before_q;
-    assign dbg_opcode = ir;
+    assign dbg_opcode = LATCH_OPCODE ? opcode_q : opcode;
     assign dbg_regs_flat = regs_flat;
     assign dbg_pc = pc;
     assign dbg_z = z;
@@ -197,11 +203,11 @@ module min8_core (
         .illegal(alu_illegal)
     );
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             state <= S_FETCH;
             pc <= 8'h00;
-            ir <= 8'h00;
+            opcode_q <= 8'h00;
             pc_before_q <= 8'h00;
             z <= 1'b0;
             c <= 1'b0;
@@ -239,12 +245,14 @@ module min8_core (
             case (state)
                 S_FETCH: begin
                     pc_before_q <= pc;
-                    ir <= imem_rdata;
                     pc <= pc + 8'h01;
                     state <= S_EXEC;
                 end
 
                 S_EXEC: begin
+                    if (LATCH_OPCODE) begin
+                        opcode_q <= opcode;
+                    end
                     if (is_mov) begin
                         dbg_retire <= 1'b1;
                         state <= S_FETCH;

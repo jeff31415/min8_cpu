@@ -1,6 +1,17 @@
 # Min8 CPU
 
-Reference implementation workspace for the Min8 8-bit ISA.
+Min8 is a minimalist 8-bit, fixed-length ISA intended for simple software
+simulation, compact RTL implementation, capable I/O handling, and enjoyable
+assembly programming.
+
+This repository contains the current end-to-end reference workspace for Min8:
+
+- ISA documentation
+- Python reference simulator
+- assembler and disassembler
+- GUI simulator/debugger
+- Verilog RTL with lockstep verification
+- FPGA bring-up demo for `xc7k70tfbg676-1`
 
 ## Environment
 
@@ -58,7 +69,7 @@ GUI debugger supports:
 
 Assembler alias and pseudo-instruction reference:
 
-- [docs/assembler_aliases.md](/home/j31415/repos/min8_cpu/docs/assembler_aliases.md)
+- [docs/assembler_aliases.md](docs/assembler_aliases.md)
 
 Current scope:
 
@@ -69,10 +80,37 @@ Current scope:
 - disassembler
 - interactive session layer with breakpoints and state editing
 - GUI simulator/debugger
+- Verilog RTL core with BRAM-backed lockstep verification
+- FPGA bring-up demo for `xc7k70tfbg676-1`
 
 Planned next:
 
-- Verilog RTL and hardware bring-up
+- broader directed/random RTL test generation
+- more board demos and external I/O integration
+
+## FPGA Demo
+
+The current board bring-up reference lives in:
+
+- [fpga/xc7k70t_fib_led_demo/README.md](fpga/xc7k70t_fib_led_demo/README.md)
+
+That demo targets `xc7k70tfbg676-1`, uses BRAM for the Min8 memory image,
+derives a `100 MHz` core clock from the board `200 MHz` differential clock,
+and exposes Min8 I/O channel `0` on the LED bank.
+
+Open the tracked Vivado project directly:
+
+```bash
+source <vivado-install>/settings64.sh
+vivado fpga/xc7k70t_fib_led_demo/vivado_proj_bram/min8_fib_led_demo_bram.xpr
+```
+
+Or rebuild it from Tcl:
+
+```bash
+source <vivado-install>/settings64.sh
+vivado -mode batch -source fpga/xc7k70t_fib_led_demo/build_bram_impl.tcl
+```
 
 ## RTL Tests
 

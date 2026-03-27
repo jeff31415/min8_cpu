@@ -50,7 +50,6 @@ LI R7, label
 Expansion rules:
 
 - `LI R0, imm8` expands to:
-- `LI R0, imm8` expands to:
 
 ```asm
 LDI_L_R0 low4
@@ -64,7 +63,6 @@ LDI_L_R0 imm4
 ```
 
 - `LI R7, imm8` expands to:
-- `LI R7, imm8` expands to:
 
 ```asm
 LDI_L_R7 low4
@@ -77,7 +75,6 @@ LDI_H_R7 high4
 LDI_L_R7 imm4
 ```
 
-- `LI Rd, imm8` for `R1..R6` expands to:
 - `LI Rd, imm8` for `R1..R6` expands to:
 
 ```asm

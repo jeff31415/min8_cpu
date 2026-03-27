@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module min8_mem_model #(
+module min8_bram_wrap #(
     parameter MEM_INIT_FILE = ""
 ) (
     input        clk,
@@ -13,7 +13,7 @@ module min8_mem_model #(
     input  [7:0] dmem_wdata,
     output reg [7:0] dmem_rdata
 );
-    reg [7:0] mem [0:255];
+    (* ram_style = "block" *) reg [7:0] mem [0:255];
     integer index;
 
     initial begin

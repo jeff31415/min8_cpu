@@ -34,7 +34,7 @@ module min8_regfile (
         regs[0]
     };
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             for (index = 0; index < 8; index = index + 1) begin
                 regs[index] <= 8'h00;
