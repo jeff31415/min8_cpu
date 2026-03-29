@@ -77,7 +77,7 @@ Current scope:
 - frozen ISA document in `min8_isa_v1_3.md`
 - phase-0 simulator/tooling contracts
 - phase-1 reference simulator with tests
-- phase-2 assembler with labels, directives, and pseudo-ops
+- phase-2 assembler with labels, directives, short-immediate shrinking, and ALU pseudo-ops
 - disassembler
 - interactive session layer with breakpoints and state editing
 - GUI simulator/debugger

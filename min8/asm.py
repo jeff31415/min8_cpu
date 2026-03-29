@@ -21,6 +21,10 @@ from .isa import (
 SYMBOL_RE = re.compile(r"[A-Za-z_.$][A-Za-z0-9_.$]*")
 LABEL_PREFIX_RE = re.compile(r"\s*([A-Za-z_.$][A-Za-z0-9_.$]*):")
 
+COMMUTATIVE_BINARY_ALU = {"ADD", "AND", "OR", "XOR", "ADC"}
+BINARY_PSEUDO_ALU = {"ADD", "SUB", "AND", "OR", "XOR", "BSET", "BCLR", "BTGL", "BTST", "ADC", "SBB"}
+UNARY_PSEUDO_ALU = {"NOT", "SHL", "SHR", "INC", "DEC", "SHR2", "SHR3", "SHL2", "SHL3", "MASK3", "MASK4"}
+
 
 class AssemblerError(Exception):
     """Raised when Min8 assembly cannot be parsed or encoded."""
@@ -233,7 +237,7 @@ def _resolve_symbols(parsed_lines: list[ParsedLine]) -> dict[str, int]:
     }
 
     for _ in range(len(parsed_lines) + 1):
-        symbols = _layout_with_sizes(parsed_lines, size_hints)
+        symbols = _layout_with_sizes(parsed_lines, size_hints, allow_overflow=True)
         next_hints = {
             index: _instruction_size(parsed, symbols)
             for index, parsed in enumerate(parsed_lines)
@@ -246,13 +250,18 @@ def _resolve_symbols(parsed_lines: list[ParsedLine]) -> dict[str, int]:
     raise AssemblerError(1, "assembler layout failed to converge")
 
 
-def _layout_with_sizes(parsed_lines: list[ParsedLine], size_hints: dict[int, int]) -> dict[str, int]:
+def _layout_with_sizes(
+    parsed_lines: list[ParsedLine],
+    size_hints: dict[int, int],
+    *,
+    allow_overflow: bool = False,
+) -> dict[str, int]:
     symbols: dict[str, int] = {}
     location = 0
 
     for index, parsed in enumerate(parsed_lines):
         for label in parsed.labels:
-            _define_symbol(symbols, label, location, parsed.line_number)
+            _define_symbol(symbols, label, location, parsed.line_number, wrap=not allow_overflow)
 
         if parsed.kind == "empty":
             continue
@@ -280,12 +289,15 @@ def _layout_with_sizes(parsed_lines: list[ParsedLine], size_hints: dict[int, int
                 if not SYMBOL_RE.fullmatch(name):
                     raise AssemblerError(parsed.line_number, f"invalid symbol name {name!r}")
                 value = _eval_address(parsed.args[1], symbols, parsed.line_number)
-                _define_symbol(symbols, name, value, parsed.line_number)
+                _define_symbol(symbols, name, value, parsed.line_number, wrap=not allow_overflow)
             else:
                 raise AssemblerError(parsed.line_number, f"unknown directive {parsed.name}")
             continue
 
-        location = _advance_location(location, size_hints[index], parsed.line_number)
+        if allow_overflow:
+            location += size_hints[index]
+        else:
+            location = _advance_location(location, size_hints[index], parsed.line_number)
 
     return symbols
 
@@ -299,6 +311,10 @@ def _conservative_instruction_size(parsed: ParsedLine) -> int:
     if parsed.name == "SETIOI":
         _require_arg_count(parsed, 1)
         return 3
+    if parsed.name in BINARY_PSEUDO_ALU and len(parsed.args) == 3:
+        return _alu_pseudo_size(parsed)
+    if parsed.name in UNARY_PSEUDO_ALU and len(parsed.args) == 2:
+        return _alu_pseudo_size(parsed)
     return 1
 
 
@@ -311,8 +327,14 @@ def _instruction_size(parsed: ParsedLine, symbols: dict[str, int]) -> int:
         return 1 if register in {0, 7} and value < 0x10 else _conservative_instruction_size(parsed) - int(value < 0x10)
     if parsed.name == "SETIOI":
         _require_arg_count(parsed, 1)
-        value = _eval_byte(parsed.args[0], symbols, parsed.line_number)
+        value = _eval_expr(parsed.args[0], symbols, parsed.line_number)
+        if not 0 <= value <= 0xFF:
+            return _conservative_instruction_size(parsed)
         return 2 if value < 0x10 else 3
+    if parsed.name in BINARY_PSEUDO_ALU and len(parsed.args) == 3:
+        return _alu_pseudo_size(parsed)
+    if parsed.name in UNARY_PSEUDO_ALU and len(parsed.args) == 2:
+        return _alu_pseudo_size(parsed)
     return 1
 
 
@@ -347,8 +369,9 @@ def _encode_instruction(parsed: ParsedLine, symbols: dict[str, int]) -> list[int
         return [LDI_OPCODE_BASE[name] | imm4]
 
     if name in ALU_OPCODE_BY_MNEMONIC:
-        _require_arg_count(parsed, 0)
-        return [0xC0 | ALU_OPCODE_BY_MNEMONIC[name]]
+        if len(parsed.args) == 0:
+            return [0xC0 | ALU_OPCODE_BY_MNEMONIC[name]]
+        return _encode_alu_pseudo(parsed)
 
     if name in IO_OPCODE_BASE:
         _require_arg_count(parsed, 1)
@@ -391,6 +414,87 @@ def _encode_li(register: int, value: int) -> list[int]:
     return opcodes
 
 
+def _alu_pseudo_size(parsed: ParsedLine) -> int:
+    return len(_encode_alu_pseudo(parsed))
+
+
+def _encode_alu_pseudo(parsed: ParsedLine) -> list[int]:
+    assert parsed.name is not None
+    mnemonic = parsed.name
+
+    if mnemonic in BINARY_PSEUDO_ALU and len(parsed.args) == 3:
+        dest = _parse_register(parsed.args[0], parsed.line_number)
+        src_a = _parse_register(parsed.args[1], parsed.line_number)
+        src_b = _parse_register(parsed.args[2], parsed.line_number)
+        return _encode_binary_alu_pseudo(mnemonic, dest, src_a, src_b)
+
+    if mnemonic in UNARY_PSEUDO_ALU and len(parsed.args) == 2:
+        dest = _parse_register(parsed.args[0], parsed.line_number)
+        src = _parse_register(parsed.args[1], parsed.line_number)
+        return _encode_unary_alu_pseudo(mnemonic, dest, src)
+
+    expected = 3 if mnemonic in BINARY_PSEUDO_ALU else 2
+    raise AssemblerError(parsed.line_number, f"{mnemonic} expects {expected} operand(s)")
+
+
+def _encode_binary_alu_pseudo(mnemonic: str, dest: int, src_a: int, src_b: int) -> list[int]:
+    candidates = [_plan_r1_r2_moves(src_a, src_b)]
+    if mnemonic in COMMUTATIVE_BINARY_ALU and src_a != src_b:
+        candidates.append(_plan_r1_r2_moves(src_b, src_a))
+
+    prelude = min(candidates, key=len)
+    encoded = [_encode_mov_opcode(move_dest, move_src) for move_dest, move_src in prelude]
+    encoded.append(0xC0 | ALU_OPCODE_BY_MNEMONIC[mnemonic])
+    if dest != 0:
+        encoded.append(_encode_mov_opcode(dest, 0))
+    return encoded
+
+
+def _encode_unary_alu_pseudo(mnemonic: str, dest: int, src: int) -> list[int]:
+    encoded: list[int] = []
+    if src != 1:
+        encoded.append(_encode_mov_opcode(1, src))
+    encoded.append(0xC0 | ALU_OPCODE_BY_MNEMONIC[mnemonic])
+    if dest != 0:
+        encoded.append(_encode_mov_opcode(dest, 0))
+    return encoded
+
+
+def _plan_r1_r2_moves(src_a: int, src_b: int) -> list[tuple[int, int]]:
+    pending: dict[int, int] = {}
+    if src_a != 1:
+        pending[1] = src_a
+    if src_b != 2:
+        pending[2] = src_b
+
+    moves: list[tuple[int, int]] = []
+    while pending:
+        progress = False
+        sources_in_use = tuple(pending.values())
+        for target, source in list(pending.items()):
+            if target not in [other_source for other_target, other_source in pending.items() if other_target != target]:
+                moves.append((target, source))
+                pending.pop(target)
+                progress = True
+                break
+
+        if progress:
+            continue
+
+        if pending == {1: 2, 2: 1}:
+            moves.extend([(0, 1), (1, 2), (2, 0)])
+            pending.clear()
+            continue
+
+        raise AssertionError(f"unexpected register shuffle for ALU pseudo-op: {pending!r}, sources={sources_in_use!r}")
+
+    return moves
+
+
+def _encode_mov_opcode(dest: int, src: int) -> int:
+    return ((dest & 0x07) << 3) | (src & 0x07)
+
+
 def _emit_bytes(
     *,
     image: bytearray,
@@ -430,10 +534,10 @@ def _parse_register(token: str, line_number: int) -> int:
     return REGISTER_INDEX[key]
 
 
-def _define_symbol(symbols: dict[str, int], name: str, value: int, line_number: int) -> None:
+def _define_symbol(symbols: dict[str, int], name: str, value: int, line_number: int, *, wrap: bool = True) -> None:
     if name in symbols:
         raise AssemblerError(line_number, f"duplicate symbol {name!r}")
-    symbols[name] = value & 0xFF
+    symbols[name] = value & 0xFF if wrap else value
 
 
 def _eval_address(expr: str, symbols: dict[str, int], line_number: int) -> int:

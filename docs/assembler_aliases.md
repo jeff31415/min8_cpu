@@ -134,6 +134,76 @@ Notes:
 - expands to 2 ISA instructions when `imm8 < 0x10`, otherwise 3
 - useful for simple I/O programs that do not want to materialize the channel in another register first
 
+### Explicit-register ALU pseudo-forms
+
+Purpose:
+
+- let ALU instructions be written in a more conventional explicit-register style
+- keep the original implicit ISA form available
+
+Supported source forms:
+
+- binary ALU ops:
+
+```asm
+ADD   Rd, Ra, Rb
+SUB   Rd, Ra, Rb
+AND   Rd, Ra, Rb
+OR    Rd, Ra, Rb
+XOR   Rd, Ra, Rb
+BSET  Rd, Ra, Rb
+BCLR  Rd, Ra, Rb
+BTGL  Rd, Ra, Rb
+BTST  Rd, Ra, Rb
+ADC   Rd, Ra, Rb
+SBB   Rd, Ra, Rb
+```
+
+- unary ALU ops:
+
+```asm
+NOT   Rd, Rs
+SHL   Rd, Rs
+SHR   Rd, Rs
+INC   Rd, Rs
+DEC   Rd, Rs
+SHR2  Rd, Rs
+SHR3  Rd, Rs
+SHL2  Rd, Rs
+SHL3  Rd, Rs
+MASK3 Rd, Rs
+MASK4 Rd, Rs
+```
+
+Expansion model:
+
+```asm
+MOV R1, Ra   ; omitted if Ra is already R1
+MOV R2, Rb   ; omitted if Rb is already R2
+ALU_OP
+MOV Rd, R0   ; omitted if Rd is R0
+```
+
+```asm
+MOV R1, Rs   ; omitted if Rs is already R1
+ALU_OP
+MOV Rd, R0   ; omitted if Rd is R0
+```
+
+Notes:
+
+- the original implicit ISA form still works:
+
+```asm
+ADD
+MASK4
+ADC
+```
+
+- the assembler removes redundant setup and writeback `MOV`s automatically
+- for commutative binary ops (`ADD`, `AND`, `OR`, `XOR`, `ADC`), the assembler may swap the two source operands internally to save moves
+- when a non-commutative op needs `R1` and `R2` to be swapped, the assembler uses `R0` as a temporary before the ALU instruction retires
+
 ## 3. Non-alias assembler conveniences
 
 These are not aliases, but they are part of the current assembly language.
@@ -160,24 +230,16 @@ These are not aliases, but they are part of the current assembly language.
 - instruction mnemonics are case-insensitive
 - register names are case-insensitive
 
-## 4. Things that are intentionally not aliases
+## 4. Things that are still intentionally not aliases
 
-The assembler currently does **not** provide higher-level ALU macros such as:
-
-```asm
-ADD R3, R4
-SUB R5, R6
-```
-
-That is intentional. For now, the assembler stays close to the ISA, so
-register-transfer sequences are still written explicitly:
+The assembler still does **not** provide more opinionated high-level macros
+such as immediate arithmetic or memory-addressing shortcuts, for example:
 
 ```asm
-MOV R1, R3
-MOV R2, R4
-ADD
-MOV R3, R0
+ADD R3, #1
+LD R4, [R7+]
 ```
 
-This keeps expansion behavior obvious and makes simulator/debugger source
-mapping simpler.
+The goal is still to stay close to the ISA. The current pseudo-instructions
+only cover the mechanical register-transfer setup around the already-defined
+implicit ALU datapath.

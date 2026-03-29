@@ -151,6 +151,79 @@ NOP
 
         self.assertEqual(result.image[:5], bytes([0x8F, 0x8E, 0x18, 0x83, 0xE0]))
 
+    def test_small_immediate_shrink_can_fit_at_end_of_image(self) -> None:
+        result = assemble_source(
+            """
+.equ SMALL, 0x0E
+.org 0xFD
+    LI R3, SMALL
+    HALT
+"""
+        )
+
+        self.assertEqual(result.image[0xFD:0x100], bytes([0x8E, 0x18, 0x7F]))
+        self.assertEqual(result.used_addresses, (0xFD, 0xFE, 0xFF))
+
+    def test_small_setioi_shrink_can_fit_at_end_of_image(self) -> None:
+        result = assemble_source(
+            """
+.equ CH, 3
+.org 0xFD
+    SETIOI CH
+    HALT
+"""
+        )
+
+        self.assertEqual(result.image[0xFD:0x100], bytes([0x83, 0xE0, 0x7F]))
+        self.assertEqual(result.used_addresses, (0xFD, 0xFE, 0xFF))
+
+    def test_explicit_binary_alu_pseudo_elides_redundant_moves(self) -> None:
+        result = assemble_source(
+            """
+    ADD R0, R1, R5
+    ADD R4, R1, R2
+    ADD R3, R2, R1
+"""
+        )
+
+        self.assertEqual(result.image[:6], bytes([0x15, 0xC0, 0xC0, 0x20, 0xC0, 0x18]))
+
+    def test_explicit_non_commutative_alu_pseudo_uses_temp_for_r1_r2_swap(self) -> None:
+        result = assemble_source("SUB R3, R2, R1\n")
+
+        self.assertEqual(result.image[:5], bytes([0x01, 0x0A, 0x10, 0xC1, 0x18]))
+
+    def test_explicit_unary_alu_pseudo_elides_redundant_moves(self) -> None:
+        result = assemble_source(
+            """
+    MASK4 R6, R1
+    SHL R5, R4
+"""
+        )
+
+        self.assertEqual(result.image[:5], bytes([0xD3, 0x30, 0x0C, 0xC6, 0x28]))
+
+    def test_explicit_alu_pseudo_runs_on_simulator(self) -> None:
+        result = assemble_source(
+            """
+    LI R4, 5
+    LI R5, 7
+    ADD R6, R4, R5
+    SUB R3, R6, R4
+    MASK4 R2, R3
+    HALT
+"""
+        )
+        cpu = Min8CPU()
+        cpu.load_image(result.image)
+
+        run_results = cpu.run()
+
+        self.assertEqual(run_results[-1].status, "halted")
+        self.assertEqual(cpu.state.registers[6], 12)
+        self.assertEqual(cpu.state.registers[3], 7)
+        self.assertEqual(cpu.state.registers[2], 7)
+
     def test_graphics_extension_mnemonics_encode(self) -> None:
         result = assemble_source(
             """
