@@ -10,10 +10,10 @@ loop:
     MOV R1, R3
     MOV R2, R4
     ADD
-    JC R5
     MOV R3, R4
     MOV R4, R0
     OUT R3
+    JC R5
     JMP R6
 
 halt:

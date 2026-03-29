@@ -12,6 +12,7 @@ This repository contains the current end-to-end reference workspace for Min8:
 - GUI simulator/debugger
 - Verilog RTL with lockstep verification
 - FPGA bring-up demo for `xc7k70tfbg676-1`
+- UART bootloader demo for `xc7k70tfbg676-1`
 
 ## Environment
 
@@ -82,6 +83,7 @@ Current scope:
 - GUI simulator/debugger
 - Verilog RTL core with BRAM-backed lockstep verification
 - FPGA bring-up demo for `xc7k70tfbg676-1`
+- UART bootloader demo with small FIFOs and host-side downloader
 
 Planned next:
 
@@ -93,6 +95,7 @@ Planned next:
 The current board bring-up reference lives in:
 
 - [fpga/xc7k70t_fib_led_demo/README.md](fpga/xc7k70t_fib_led_demo/README.md)
+- [fpga/xc7k70t_uart_boot_demo/README.md](fpga/xc7k70t_uart_boot_demo/README.md)
 
 That demo targets `xc7k70tfbg676-1`, uses BRAM for the Min8 memory image,
 derives a `100 MHz` core clock from the board `200 MHz` differential clock,
@@ -110,6 +113,15 @@ Or rebuild it from Tcl:
 ```bash
 source <vivado-install>/settings64.sh
 vivado -mode batch -source fpga/xc7k70t_fib_led_demo/build_bram_impl.tcl
+```
+
+The UART bootloader demo preloads a self-overwriting loader into BRAM, receives
+`252` bytes on `IOSEL=0x01`, and then jumps back to `0x00`. Download a program
+with:
+
+```bash
+source .venv/bin/activate
+min8-uart-download --port /dev/ttyUSB0 examples/uart_echo.asm
 ```
 
 ## RTL Tests

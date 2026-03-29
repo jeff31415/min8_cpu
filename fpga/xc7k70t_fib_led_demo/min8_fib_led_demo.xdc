@@ -21,7 +21,10 @@ set_property PACKAGE_PIN D26 [get_ports {leds[7]}]
 
 set_property PACKAGE_PIN AA10 [get_ports clk_200M_p]
 set_property PACKAGE_PIN AB10 [get_ports clk_200M_n]
-set_property IOSTANDARD DIFF_SSTL15 [get_ports {clk_200M_p clk_200M_n}]
+set_property IOSTANDARD LVDS [get_ports {clk_200M_p clk_200M_n}]
 
 create_clock -name clk_200m -period 5.000 [get_ports clk_200M_p]
 create_generated_clock -name clk_core -source [get_ports clk_200M_p] -divide_by 2 [get_pins u_bufg_core/O]
+
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
