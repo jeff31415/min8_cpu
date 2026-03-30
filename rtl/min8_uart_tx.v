@@ -11,7 +11,8 @@ module min8_uart_tx #(
     output       ready,
     output reg   txd
 );
-    localparam integer CLKS_PER_BIT = (CLK_FREQ_HZ + (BAUD_RATE / 2)) / BAUD_RATE;
+    localparam integer CLKS_PER_BIT =
+        ((64'd1 * CLK_FREQ_HZ) + (BAUD_RATE / 2)) / BAUD_RATE;
 
     reg [9:0] frame_q;
     reg [3:0] bit_index_q;

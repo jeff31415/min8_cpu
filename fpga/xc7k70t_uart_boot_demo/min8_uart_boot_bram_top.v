@@ -2,7 +2,13 @@
 
 module min8_uart_boot_bram_top #(
     parameter CORE_LATCH_OPCODE = 1,
-    parameter integer IO0_TICK_DIVISOR = 100_000_000,
+    parameter integer CLKIN_HZ = 200_000_000,
+    parameter integer PLL_CLKFBOUT_MULT = 27,
+    parameter integer PLL_DIVCLK_DIVIDE = 5,
+    parameter integer PLL_CLKOUT0_DIVIDE = 6,
+    parameter integer IO0_TICK_DIVISOR =
+        ((64'd1 * CLKIN_HZ * PLL_CLKFBOUT_MULT) /
+         (PLL_DIVCLK_DIVIDE * PLL_CLKOUT0_DIVIDE)),
     parameter MEM_INIT_FILE = ""
 ) (
     input         clk_200M_p,
@@ -12,12 +18,15 @@ module min8_uart_boot_bram_top #(
     output [7:0]  leds
 );
     localparam integer POWER_ON_RESET_CYCLES = 16;
+    localparam integer CORE_CLK_HZ =
+        ((64'd1 * CLKIN_HZ * PLL_CLKFBOUT_MULT) /
+         (PLL_DIVCLK_DIVIDE * PLL_CLKOUT0_DIVIDE));
     localparam integer IO0_COUNTER_WIDTH = (IO0_TICK_DIVISOR > 1) ? $clog2(IO0_TICK_DIVISOR) : 1;
     localparam [7:0] LED_CHANNEL = 8'h00;
     localparam [7:0] UART_CHANNEL = 8'h01;
 
     wire clk_200m_ibuf;
-    wire clk_100m_pll;
+    wire clk_pll_out;
     wire clkfb_pll;
     wire clkfb_bufg;
     wire clk_core;
@@ -72,16 +81,16 @@ module min8_uart_boot_bram_top #(
 
     PLLE2_BASE #(
         .CLKIN1_PERIOD(5.000),
-        .CLKFBOUT_MULT(5),
-        .DIVCLK_DIVIDE(1),
-        .CLKOUT0_DIVIDE(10)
+        .CLKFBOUT_MULT(PLL_CLKFBOUT_MULT),
+        .DIVCLK_DIVIDE(PLL_DIVCLK_DIVIDE),
+        .CLKOUT0_DIVIDE(PLL_CLKOUT0_DIVIDE)
     ) u_pll (
         .CLKIN1(clk_200m_ibuf),
         .CLKFBIN(clkfb_bufg),
         .RST(1'b0),
         .PWRDWN(1'b0),
         .CLKFBOUT(clkfb_pll),
-        .CLKOUT0(clk_100m_pll),
+        .CLKOUT0(clk_pll_out),
         .CLKOUT1(),
         .CLKOUT2(),
         .CLKOUT3(),
@@ -96,7 +105,7 @@ module min8_uart_boot_bram_top #(
     );
 
     BUFG u_bufg_core (
-        .I(clk_100m_pll),
+        .I(clk_pll_out),
         .O(clk_core)
     );
 
@@ -177,7 +186,7 @@ module min8_uart_boot_bram_top #(
     );
 
     min8_uart_rx #(
-        .CLK_FREQ_HZ(100_000_000),
+        .CLK_FREQ_HZ(CORE_CLK_HZ),
         .BAUD_RATE(115_200)
     ) u_uart_rx (
         .clk(clk_core),
@@ -220,7 +229,7 @@ module min8_uart_boot_bram_top #(
     );
 
     min8_uart_tx #(
-        .CLK_FREQ_HZ(100_000_000),
+        .CLK_FREQ_HZ(CORE_CLK_HZ),
         .BAUD_RATE(115_200)
     ) u_uart_tx (
         .clk(clk_core),

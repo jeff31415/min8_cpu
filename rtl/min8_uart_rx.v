@@ -10,7 +10,8 @@ module min8_uart_rx #(
     output reg [7:0] data_out,
     output reg   valid
 );
-    localparam integer CLKS_PER_BIT = (CLK_FREQ_HZ + (BAUD_RATE / 2)) / BAUD_RATE;
+    localparam integer CLKS_PER_BIT =
+        ((64'd1 * CLK_FREQ_HZ) + (BAUD_RATE / 2)) / BAUD_RATE;
     localparam integer HALF_CLKS_PER_BIT = (CLKS_PER_BIT > 1) ? (CLKS_PER_BIT / 2) : 1;
 
     localparam [1:0] S_IDLE  = 2'd0;
