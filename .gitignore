@@ -9,3 +9,5 @@ vivado*.jou
 vivado*.log
 *.backup.jou
 *.backup.log
+fpga/*/reports/
+fpga/*/sweep_runs/
