@@ -15,6 +15,7 @@ rtl = ["cocotb>=2,<3"]
 [project.scripts]
 min8-asm = "min8.asm:main"
 min8-pro-asm = "min8_pro.asm:main"
+min8-pro-gui = "min8_pro.gui:main"
 min8-gui = "min8.gui:main"
 min8-uart-download = "min8.uart_download:main"
 

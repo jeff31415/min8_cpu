@@ -5,6 +5,7 @@ from .cpu import Min8ProCPU
 from .disasm import DisassemblyLine, disassemble_image
 from .exceptions import IllegalInstruction, MachineHalted
 from .io import FIFOIO, IOBlock
+from .session import Min8ProSession
 
 __all__ = [
     "AssemblerError",
@@ -15,6 +16,7 @@ __all__ = [
     "IllegalInstruction",
     "MachineHalted",
     "Min8ProCPU",
+    "Min8ProSession",
     "assemble_source",
     "disassemble_image",
 ]
