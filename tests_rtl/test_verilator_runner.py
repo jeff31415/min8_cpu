@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 import unittest
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 try:
@@ -20,6 +21,11 @@ else:
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_OSS_CAD_BIN = ROOT / "oss-cad-suite" / "bin"
 BUILD_ROOT = ROOT / "build" / "rtl_smoke_verilator"
+RANDOM_ARTIFACT_ENV = "MIN8_RTL_RANDOM_ARTIFACT_DIR"
+RANDOM_CASES_ENV = "MIN8_RTL_RANDOM_CASES"
+RANDOM_CASE_OFFSET_ENV = "MIN8_RTL_RANDOM_CASE_OFFSET"
+RANDOM_JOBS_ENV = "MIN8_RTL_RANDOM_JOBS"
+DEFAULT_RANDOM_CASES = 12
 RTL_SOURCES = [
     ROOT / "rtl/min8_alu.v",
     ROOT / "rtl/min8_regfile.v",
@@ -49,6 +55,79 @@ def _prepare_environment() -> None:
             sys.path.insert(0, entry)
 
 
+def _total_random_cases() -> int:
+    return max(1, int(os.environ.get(RANDOM_CASES_ENV, str(DEFAULT_RANDOM_CASES)), 0))
+
+
+def _random_job_count(total_cases: int) -> int:
+    configured = os.environ.get(RANDOM_JOBS_ENV)
+    if configured is not None:
+        return max(1, min(total_cases, int(configured, 0)))
+    return max(1, min(total_cases, os.cpu_count() or 1, 4))
+
+
+def _split_cases(total_cases: int, shard_count: int) -> list[tuple[int, int]]:
+    shard_count = max(1, min(total_cases, shard_count))
+    base = total_cases // shard_count
+    remainder = total_cases % shard_count
+    offset = 0
+    shards: list[tuple[int, int]] = []
+    for shard_index in range(shard_count):
+        count = base + (1 if shard_index < remainder else 0)
+        if count <= 0:
+            continue
+        shards.append((offset, count))
+        offset += count
+    return shards
+
+
+def _run_random_shard(
+    build_dir: Path,
+    latch_opcode: int,
+    shard_index: int,
+    case_offset: int,
+    case_count: int,
+) -> tuple[int, int]:
+    _prepare_environment()
+    runner = get_runner("verilator")
+    shard_dir = build_dir / "random_shards" / f"shard_{shard_index:02d}"
+    shard_build_dir = shard_dir / "build"
+    shard_test_dir = shard_dir / "test"
+    shard_test_dir.mkdir(parents=True, exist_ok=True)
+    runner.build(
+        sources=RTL_SOURCES,
+        hdl_toplevel="min8_core_tb",
+        always=True,
+        build_dir=str(shard_build_dir),
+        build_args=[f"-GCORE_LATCH_OPCODE={latch_opcode}"],
+        waves=False,
+    )
+    env_updates = {
+        RANDOM_ARTIFACT_ENV: str(build_dir / "random_failures" / f"shard_{shard_index:02d}"),
+        RANDOM_CASES_ENV: str(case_count),
+        RANDOM_CASE_OFFSET_ENV: str(case_offset),
+    }
+    previous_env = {key: os.environ.get(key) for key in env_updates}
+    os.environ.update(env_updates)
+    try:
+        results_xml = runner.test(
+            hdl_toplevel="min8_core_tb",
+            test_module=["test_rtl_random"],
+            waves=False,
+            build_dir=str(shard_build_dir),
+            test_dir=str(shard_test_dir),
+            results_xml=str(shard_test_dir / "results.xml"),
+            extra_env=env_updates,
+        )
+    finally:
+        for key, value in previous_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    return get_results(results_xml)
+
+
 class VerilatorSmokeRunner(unittest.TestCase):
     def _run_suite(self, *, latch_opcode: int, build_dir: Path) -> None:
         if IMPORT_ERROR is not None:
@@ -66,14 +145,32 @@ class VerilatorSmokeRunner(unittest.TestCase):
             build_args=[f"-GCORE_LATCH_OPCODE={latch_opcode}"],
             waves=False,
         )
-        results_xml = runner.test(
+        directed_dir = build_dir / "directed"
+        directed_dir.mkdir(parents=True, exist_ok=True)
+        directed_results_xml = runner.test(
             hdl_toplevel="min8_core_tb",
             test_module=["test_rtl_smoke", "test_rtl_lockstep"],
             waves=False,
             build_dir=str(build_dir),
-            test_dir=str(build_dir),
+            test_dir=str(directed_dir),
+            results_xml=str(directed_dir / "results.xml"),
+            extra_env={
+                RANDOM_ARTIFACT_ENV: str(build_dir / "directed_failures"),
+            },
         )
-        num_tests, num_failed = get_results(results_xml)
+        num_tests, num_failed = get_results(directed_results_xml)
+        total_random_cases = _total_random_cases()
+        shard_specs = _split_cases(total_random_cases, _random_job_count(total_random_cases))
+
+        with ProcessPoolExecutor(max_workers=len(shard_specs)) as executor:
+            futures = [
+                executor.submit(_run_random_shard, build_dir, latch_opcode, shard_index, case_offset, case_count)
+                for shard_index, (case_offset, case_count) in enumerate(shard_specs)
+            ]
+            for future in futures:
+                shard_tests, shard_failed = future.result()
+                num_tests += shard_tests
+                num_failed += shard_failed
         self.assertGreater(num_tests, 0)
         self.assertEqual(num_failed, 0, f"{num_failed} cocotb RTL tests failed")
 

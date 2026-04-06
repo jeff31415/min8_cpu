@@ -94,13 +94,16 @@ Compare at minimum:
 
 ### Layer 3: Random program regression
 
-Generate short legal programs and compare complete traces.
+Generate short legal initial images and compare complete architectural traces.
 
 Constraints:
 
 - keep program length small, for example 8 to 32 instructions
-- avoid undefined encodings unless the test explicitly targets illegal opcodes
-- bound execution steps to avoid infinite loops
+- emit legal initial opcode bytes, while allowing later self-modification to
+  create loops or illegal decodes
+- treat the event budget as a resource cap, not as a correctness assertion
+- allow non-halting and illegal-ending cases to pass when they still match the
+  simulator
 - use deterministic RNG seeds
 
 Random tests should heavily sample:
@@ -111,6 +114,7 @@ Random tests should heavily sample:
 - memory aliases with code space
 - `ADC` / `SBB`
 - I/O block and resume sequences
+- self-modifying control-flow disruption
 
 ### Layer 4: Module-level micro-tests
 
@@ -201,6 +205,8 @@ Pseudo-flow:
 5. execute one oracle step
 6. compare event type and full state
 7. if blocked, inject I/O stimulus as needed and continue
+8. return success on `HALT`, exact repeated-state cycle detection, legal budget
+   exhaustion, or matched illegal-instruction fault
 
 ## Repository Layout Recommendation
 
@@ -215,10 +221,51 @@ Suggested structure:
   - `test_rtl_lockstep.py`
   - `test_rtl_random.py`
 - `tests_rtl/support/`
-  - `oracle_runner.py`
-  - `rtl_driver.py`
-  - `program_gen.py`
-  - `trace_compare.py`
+  - `lockstep.py`
+  - `randomized.py`
+
+## Current Randomized Flow
+
+The repository now includes a reusable randomized retirement-lockstep flow for
+RTL verification.
+
+- entry point: `tests_rtl/test_rtl_random.py`
+- image generator and deterministic I/O scheduler: `tests_rtl/support/randomized.py`
+- lockstep execution and failure artifact capture: `tests_rtl/support/lockstep.py`
+- component guide: `docs/rtl_random_verifier.md`
+- integration contract: `docs/rtl_random_verifier_contract.md`
+
+Environment knobs:
+
+- `MIN8_RTL_RANDOM_SEED`
+- `MIN8_RTL_RANDOM_CASES`
+- `MIN8_RTL_RANDOM_CASE_OFFSET`
+- `MIN8_RTL_RANDOM_JOBS`
+- `MIN8_RTL_RANDOM_MAX_EVENTS`
+- `MIN8_RTL_RANDOM_MAX_PROGRAM_BYTES`
+- `MIN8_RTL_RANDOM_ENABLE_CYCLE_DETECT`
+- `MIN8_RTL_RANDOM_ARTIFACT_DIR`
+
+Successful randomized outcomes are classified as:
+
+- `halted_match`
+- `bounded_match`
+- `cycle_match`
+- `illegal_match`
+
+On any mismatch or unexpected runtime failure, the harness writes:
+
+- `image.bin`
+- `image.memh`
+- `failure.json`
+
+The artifact directory defaults to `build/rtl_random_failures/`, and the
+Verilator runner overrides it per build so different RTL configurations do not
+clobber each other.
+
+The Verilator unittest runner can shard randomized cases across multiple worker
+processes with `MIN8_RTL_RANDOM_JOBS`. Each shard gets a disjoint global case
+range and its own artifact subtree so reproducibility is preserved.
 
 Keep RTL tests separate from the current pure-Python unit tests.
 

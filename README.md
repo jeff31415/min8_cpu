@@ -140,7 +140,32 @@ source .venv/bin/activate
 python -m unittest tests_rtl.test_verilator_runner -v
 ```
 
+Scale up the randomized portion with parallel shards:
+
+```bash
+source .venv/bin/activate
+export MIN8_RTL_RANDOM_CASES=2000
+export MIN8_RTL_RANDOM_JOBS=4
+python -m unittest tests_rtl.test_verilator_runner -v
+```
+
+Enable optional exact cycle detection in the randomized suite:
+
+```bash
+source .venv/bin/activate
+export MIN8_RTL_RANDOM_ENABLE_CYCLE_DETECT=1
+python -m unittest tests_rtl.test_verilator_runner -v
+```
+
 That suite currently includes:
 
 - basic smoke tests for reset / HALT / simple execution
 - lockstep checks against the Python reference simulator for arithmetic, memory, branching, and blocking I/O programs
+- deterministic randomized-image lockstep regression with failure artifact capture
+- successful randomized outcomes for `halted_match`, `bounded_match`, `cycle_match`, and `illegal_match`
+
+RTL verification docs:
+
+- [docs/rtl_test_framework.md](docs/rtl_test_framework.md)
+- [docs/rtl_random_verifier.md](docs/rtl_random_verifier.md)
+- [docs/rtl_random_verifier_contract.md](docs/rtl_random_verifier_contract.md)
