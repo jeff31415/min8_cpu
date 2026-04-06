@@ -4,7 +4,7 @@ from .asm import AssemblerError, AssemblyResult, assemble_source
 from .cpu import Min8CPU
 from .disasm import DisassemblyLine, disassemble_image
 from .exceptions import IllegalInstruction, MachineHalted
-from .io import FIFOIO, IOBlock
+from .io import FIFOIO, IOBlock, PeripheralHub
 from .session import Min8Session
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "MachineHalted",
     "Min8CPU",
     "Min8Session",
+    "PeripheralHub",
     "assemble_source",
     "disassemble_image",
 ]

@@ -58,6 +58,13 @@ Launch the GUI simulator and load an assembly program immediately:
 min8-gui examples/echo.asm
 ```
 
+Peripheral-oriented examples:
+
+- `examples/ps2_scan_echo.asm`
+- `examples/audio_saw.asm`
+- `examples/ws2812_2x2_cycle.asm`
+- `examples/filo_stack.asm`
+
 GUI debugger supports:
 
 - source and disassembly views
@@ -67,6 +74,7 @@ GUI debugger supports:
 - color-grouped register panels
 - syntax highlighting for assembly source
 - per-step highlight of updated registers and memory
+- peripheral configuration tab with JSON load/save, PS/2 capture, audio waveform, optional host playback via `aplay`, and WS2812 preview
 
 Assembler alias and pseudo-instruction reference:
 
@@ -169,3 +177,4 @@ RTL verification docs:
 - [docs/rtl_test_framework.md](docs/rtl_test_framework.md)
 - [docs/rtl_random_verifier.md](docs/rtl_random_verifier.md)
 - [docs/rtl_random_verifier_contract.md](docs/rtl_random_verifier_contract.md)
+- [docs/peripheral_io_library.md](docs/peripheral_io_library.md)

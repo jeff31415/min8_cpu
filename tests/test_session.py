@@ -100,6 +100,34 @@ start:
         self.assertEqual(session.source_address_for_line(4), 0x01)
         self.assertEqual(session.disassembly_line_for_address(0x00), 1)
 
+    def test_reset_clears_peripheral_runtime_state_but_keeps_config(self) -> None:
+        session = Min8Session()
+        session.load_peripheral_config(
+            {
+                "version": 1,
+                "devices": [
+                    {"type": "ps2", "name": "keyboard0", "channel": 0x10, "rx_depth": 4, "tx_depth": 4},
+                    {"type": "audio8", "name": "audio0", "channel": 0x11, "tx_depth": 8, "sample_rate_hz": 16000},
+                ],
+            }
+        )
+        session.queue_rx(0x10, [0x1C, 0xF0])
+        session.io.write(0x10, 0xED)
+        session.io.write(0x11, 0x7F)
+        session.tick_io(1 / 16_000)
+
+        session.reset()
+
+        keyboard = session.io.get_device(0x10)
+        audio = session.io.get_device(0x11)
+        self.assertIsNotNone(keyboard)
+        self.assertIsNotNone(audio)
+        self.assertEqual(keyboard.snapshot()["rx_depth"], 0)
+        self.assertEqual(keyboard.snapshot()["tx_depth"], 0)
+        self.assertEqual(keyboard.snapshot()["empty_read_count"], 0)
+        self.assertEqual(audio.snapshot()["tx_depth"], 0)
+        self.assertEqual(audio.snapshot()["samples_played"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,7 +9,7 @@ from .asm import AssemblyResult, ListingLine, assemble_file, assemble_source
 from .cpu import Min8CPU, StepResult
 from .disasm import DisassemblyLine, disassemble_image, format_disassembly
 from .exceptions import IllegalInstruction, MachineHalted
-from .io import FIFOIO
+from .io import PeripheralHub, PeripheralHubConfig
 from .isa import REGISTER_INDEX
 
 
@@ -31,7 +31,7 @@ class Min8Session:
     """High-level state manager for running Min8 programs interactively."""
 
     def __init__(self, *, tx_capacity: int | None = None) -> None:
-        self.io = FIFOIO(tx_capacity=tx_capacity)
+        self.io = PeripheralHub(tx_capacity=tx_capacity)
         self.cpu = Min8CPU(io_backend=self.io)
         self.loaded_program: LoadedProgram | None = None
         self.last_result: StepResult | None = None
@@ -89,6 +89,7 @@ class Min8Session:
 
     def reset(self) -> None:
         self.cpu.reset(clear_memory=True)
+        self.io.reset_state()
         if self.loaded_program is not None:
             self.cpu.load_image(self.loaded_program.image)
         self.last_result = None
@@ -141,6 +142,15 @@ class Min8Session:
 
     def drain_tx(self, channel: int) -> list[int]:
         return self.io.drain_tx(channel)
+
+    def tick_io(self, elapsed_s: float) -> None:
+        self.io.tick(elapsed_s)
+
+    def load_peripheral_config(self, config: PeripheralHubConfig | dict[str, object]) -> None:
+        self.io.load_config(config)
+
+    def dump_peripheral_config(self) -> PeripheralHubConfig:
+        return self.io.dump_config()
 
     def set_breakpoint(self, address: int) -> None:
         self.breakpoints.add(address & 0xFF)

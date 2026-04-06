@@ -136,6 +136,29 @@ start:
         self.assertIn("12F0: AA", dump)
         self.assertIn("1300: 55", dump)
 
+    def test_reset_clears_peripheral_runtime_state_but_keeps_config(self) -> None:
+        session = Min8ProSession()
+        session.load_peripheral_config(
+            {
+                "version": 1,
+                "devices": [
+                    {"type": "ps2", "name": "keyboard0", "channel": 0x10, "rx_depth": 4, "tx_depth": 4},
+                    {"type": "filo", "name": "stack0", "channel": 0x13, "depth": 8},
+                ],
+            }
+        )
+        session.queue_rx(0x10, [0x1C])
+        session.io.write(0x13, 0x22)
+
+        session.reset()
+
+        keyboard = session.io.get_device(0x10)
+        stack = session.io.get_device(0x13)
+        self.assertIsNotNone(keyboard)
+        self.assertIsNotNone(stack)
+        self.assertEqual(keyboard.snapshot()["rx_depth"], 0)
+        self.assertEqual(stack.snapshot()["stack"], ())
+
 
 if __name__ == "__main__":
     unittest.main()

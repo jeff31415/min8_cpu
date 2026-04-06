@@ -2,63 +2,45 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
-from dataclasses import dataclass
+from min8_shared.peripherals import (
+    IOBlock,
+    AudioOutputDevice,
+    FIFOChannelDevice,
+    FILOStackDevice,
+    PS2KeyboardDevice,
+    PeripheralConfigEntry,
+    PeripheralDevice,
+    PeripheralHubBase,
+    PeripheralHubConfig,
+    WS2812Device,
+    make_device_from_config,
+)
 
 from .exceptions import WouldBlockOnIO
 
 
-@dataclass(frozen=True)
-class IOBlock:
-    direction: str
-    channel: int
-
-
-class FIFOIO:
+class FIFOIO(PeripheralHubBase):
     """Channel-indexed FIFO backend that matches the ISA I/O model."""
 
     def __init__(self, *, tx_capacity: int | None = None) -> None:
-        if tx_capacity is not None and tx_capacity < 0:
-            raise ValueError("tx_capacity must be non-negative or None")
-        self.tx_capacity = tx_capacity
-        self._rx: dict[int, deque[int]] = defaultdict(deque)
-        self._tx: dict[int, deque[int]] = defaultdict(deque)
+        super().__init__(would_block_exc_type=WouldBlockOnIO, tx_capacity=tx_capacity)
 
-    def can_read(self, channel: int) -> bool:
-        return bool(self._rx[channel & 0xFF])
 
-    def can_write(self, channel: int) -> bool:
-        if self.tx_capacity is None:
-            return True
-        return len(self._tx[channel & 0xFF]) < self.tx_capacity
+class PeripheralHub(FIFOIO):
+    """Extended backend that can host richer per-channel peripherals."""
 
-    def read(self, channel: int) -> int:
-        channel &= 0xFF
-        if not self.can_read(channel):
-            raise WouldBlockOnIO("in", channel)
-        return self._rx[channel].popleft()
 
-    def write(self, channel: int, value: int) -> None:
-        channel &= 0xFF
-        if not self.can_write(channel):
-            raise WouldBlockOnIO("out", channel)
-        self._tx[channel].append(value & 0xFF)
-
-    def queue_rx(self, channel: int, *values: int) -> None:
-        channel &= 0xFF
-        fifo = self._rx[channel]
-        for value in values:
-            fifo.append(value & 0xFF)
-
-    def drain_tx(self, channel: int) -> list[int]:
-        channel &= 0xFF
-        fifo = self._tx[channel]
-        values = list(fifo)
-        fifo.clear()
-        return values
-
-    def rx_depth(self, channel: int) -> int:
-        return len(self._rx[channel & 0xFF])
-
-    def tx_depth(self, channel: int) -> int:
-        return len(self._tx[channel & 0xFF])
+__all__ = [
+    "AudioOutputDevice",
+    "FIFOChannelDevice",
+    "FIFOIO",
+    "FILOStackDevice",
+    "IOBlock",
+    "PS2KeyboardDevice",
+    "PeripheralConfigEntry",
+    "PeripheralDevice",
+    "PeripheralHub",
+    "PeripheralHubConfig",
+    "WS2812Device",
+    "make_device_from_config",
+]
