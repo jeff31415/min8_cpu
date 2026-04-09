@@ -29,6 +29,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RANDOM_ARTIFACT_DIR = PROJECT_ROOT / "build" / "rtl_random_failures"
 LEGAL_ALU_SUBOPCODES = tuple(sorted(ALU_MNEMONICS))
 HALT_OPCODE = 0x7F
+RESERVED_IO_CHANNELS = frozenset({0x10, 0x11, 0x12, 0x13})
+AVAILABLE_IO_CHANNELS = tuple(channel for channel in range(256) if channel not in RESERVED_IO_CHANNELS)
 
 
 @dataclass(frozen=True)
@@ -99,7 +101,7 @@ class RandomizedIOScript:
         self._record(phase="setup", tx_ready=True)
         io.set_tx_ready(True)
         for _ in range(self._rng.randrange(self._preload_events + 1)):
-            channel = self._rng.randrange(256)
+            channel = _random_io_channel(self._rng)
             values = [self._rng.randrange(256) for _ in range(1 + self._rng.randrange(self._max_rx_burst))]
             io.queue_rx(channel, *values)
             for value in values:
@@ -326,7 +328,7 @@ def _emit_random_memory(builder: _ImageBuilder, rng: random.Random, room: int) -
 
 
 def _emit_random_io(builder: _ImageBuilder, rng: random.Random, room: int) -> None:
-    builder.emit_load_const(0, rng.randrange(256))
+    builder.emit_load_const(0, _random_io_channel(rng))
     builder.emit(IO_OPCODE_BASE["SETIO"])
 
     operation = rng.choice(("GETIO", "IN", "OUT"))
@@ -361,6 +363,10 @@ def _env_bool(name: str, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"Invalid boolean value for {name}: {value!r}")
+
+
+def _random_io_channel(rng: random.Random) -> int:
+    return AVAILABLE_IO_CHANNELS[rng.randrange(len(AVAILABLE_IO_CHANNELS))]
 
 
 def _format_memh(image: bytes) -> str:

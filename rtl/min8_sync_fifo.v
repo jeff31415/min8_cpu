@@ -20,10 +20,11 @@ module min8_sync_fifo #(
     reg [ADDR_WIDTH-1:0] rd_ptr;
     integer index;
 
+    wire [31:0] level_ext = {{(32 - (ADDR_WIDTH + 1)){1'b0}}, level};
     wire do_push = push && !full;
     wire do_pop = pop && !empty;
 
-    assign full = (level == DEPTH);
+    assign full = (level_ext == DEPTH);
     assign empty = (level == 0);
     assign dout = mem[rd_ptr];
 

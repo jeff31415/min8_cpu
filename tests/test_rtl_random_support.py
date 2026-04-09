@@ -11,6 +11,8 @@ from min8.exceptions import WouldBlockOnIO
 from min8.isa import decode_opcode
 from tests_rtl.support.randomized import (
     HALT_OPCODE,
+    RESERVED_IO_CHANNELS,
+    _random_io_channel,
     RandomizedIOScript,
     build_random_case,
     random_case_seed,
@@ -56,6 +58,15 @@ class RandomizedRTLSupportTests(unittest.TestCase):
         self.assertEqual(first.image[first.halt_address], HALT_OPCODE)
         for address in range(first.used_bytes):
             decode_opcode(first.image[address], pc=address)
+
+    def test_reserved_io_channel_is_excluded_from_random_io_generation(self) -> None:
+        import random
+
+        rng = random.Random(0xBEEF)
+        channels = {_random_io_channel(rng) for _ in range(512)}
+
+        self.assertTrue(channels)
+        self.assertTrue(channels.isdisjoint(RESERVED_IO_CHANNELS))
 
     def test_random_case_runs_within_budget_without_exceptions(self) -> None:
         base_seed = 0xCAFE

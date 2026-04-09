@@ -31,6 +31,12 @@ RTL_SOURCES = [
     ROOT / "rtl/min8_regfile.v",
     ROOT / "rtl/min8_bram_wrap.v",
     ROOT / "rtl/min8_mem_model.v",
+    ROOT / "rtl/min8_sync_fifo.v",
+    ROOT / "rtl/min8_io_filo.v",
+    ROOT / "rtl/min8_io_ps2.v",
+    ROOT / "rtl/min8_io_audio.v",
+    ROOT / "rtl/min8_io_ws2812.v",
+    ROOT / "rtl/min8_io_peripheral_chain.v",
     ROOT / "rtl/min8_core.v",
     ROOT / "rtl/min8_core_tb.v",
 ]
@@ -149,7 +155,7 @@ class VerilatorSmokeRunner(unittest.TestCase):
         directed_dir.mkdir(parents=True, exist_ok=True)
         directed_results_xml = runner.test(
             hdl_toplevel="min8_core_tb",
-            test_module=["test_rtl_smoke", "test_rtl_lockstep"],
+            test_module=["test_rtl_smoke", "test_rtl_peripherals", "test_rtl_lockstep"],
             waves=False,
             build_dir=str(build_dir),
             test_dir=str(directed_dir),
