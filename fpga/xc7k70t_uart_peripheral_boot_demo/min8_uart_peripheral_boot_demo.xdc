@@ -1,0 +1,37 @@
+set_property PACKAGE_PIN E25 [get_ports {leds[0]}]
+set_property PACKAGE_PIN E26 [get_ports {leds[1]}]
+set_property PACKAGE_PIN F25 [get_ports {leds[2]}]
+set_property PACKAGE_PIN G25 [get_ports {leds[3]}]
+set_property PACKAGE_PIN C21 [get_ports {leds[4]}]
+set_property PACKAGE_PIN C26 [get_ports {leds[5]}]
+set_property PACKAGE_PIN D25 [get_ports {leds[6]}]
+set_property PACKAGE_PIN D26 [get_ports {leds[7]}]
+set_property IOSTANDARD LVCMOS33 [get_ports leds[*]]
+
+set_property PACKAGE_PIN AA10 [get_ports clk_200M_p]
+set_property PACKAGE_PIN AB10 [get_ports clk_200M_n]
+set_property IOSTANDARD LVDS [get_ports {clk_200M_p clk_200M_n}]
+create_clock -period 5.000 -name clk_200m_in [get_ports clk_200M_p]
+create_generated_clock -name clk_core -divide_by 1 \
+    -source [get_pins u_pll/CLKOUT0] [get_pins u_bufg_core/O]
+
+set_property PACKAGE_PIN M21 [get_ports uart_tx]
+set_property PACKAGE_PIN K22 [get_ports uart_rx]
+set_property IOSTANDARD LVCMOS33 [get_ports {uart_tx uart_rx}]
+set_property PULLUP true [get_ports uart_rx]
+
+set_property PACKAGE_PIN C22 [get_ports ps2_clk]
+set_property PACKAGE_PIN M19 [get_ports ps2_data]
+set_property IOSTANDARD LVCMOS33 [get_ports {ps2_clk ps2_data}]
+set_property PULLUP true [get_ports {ps2_clk ps2_data}]
+
+set_property PACKAGE_PIN F23 [get_ports ws2812_out]
+set_property PACKAGE_PIN G24 [get_ports audio_dsm_out]
+set_property IOSTANDARD LVCMOS33 [get_ports {ws2812_out audio_dsm_out}]
+set_property DRIVE 8 [get_ports {ws2812_out audio_dsm_out}]
+set_property SLEW FAST [get_ports {ws2812_out audio_dsm_out}]
+
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 3.3 [current_design]
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
